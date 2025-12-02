@@ -130,58 +130,58 @@ public class DataService
         return db.Laegemiddler.ToList();
     }
 
-    public PN OpretPN(int patientId, int laegemiddelId, double antal, DateTime startDato, DateTime slutDato) {
-        // 1. Find patient
-        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId);
-        if (patient == null)
-            throw new ArgumentException("Patient ikke fundet");
+    public PN OpretPN(int patientId, int laegemiddelId, double antal, DateTime startDato, DateTime slutDato)
+    {
+        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId)
+            ?? throw new ArgumentException("Patient ikke fundet");
 
-        // 2. Find lægemiddel
-        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId);
-        if (laegemiddel == null)
-            throw new ArgumentException("Lægemiddel ikke fundet");
+        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId)
+            ?? throw new ArgumentException("Lægemiddel ikke fundet");
 
-        // 3. Opret selve ordinationen
+        // ⭐ VALIDER FØR VI LAVER OBJEKTET
+        if (startDato > slutDato)
+            throw new ArgumentException("Startdato må ikke være efter slutdato");
+
         var ord = new PN(startDato, slutDato, antal, laegemiddel);
 
-        // 4. Tilføj til database og til patient
         db.Ordinationer.Add(ord);
         patient.ordinationer.Add(ord);
-
-        // 5. Gem i databasen
         db.SaveChanges();
 
-        // 6. Returnér den nye ordination
         return ord;
     }
-    
+
+
 
     public DagligFast OpretDagligFast(int patientId, int laegemiddelId,
      double antalMorgen, double antalMiddag, double antalAften, double antalNat,
      DateTime startDato, DateTime slutDato)
     {
         // 1. Find patient
-        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId);
-        if (patient == null)
-            throw new ArgumentException("Patient ikke fundet");
+        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId)
+            ?? throw new ArgumentException("Patient ikke fundet");
 
         // 2. Find lægemiddel
-        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId);
-        if (laegemiddel == null)
-            throw new ArgumentException("Lægemiddel ikke fundet");
+        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId)
+            ?? throw new ArgumentException("Lægemiddel ikke fundet");
 
-        // 3. Opret selve ordinationen
+        // 3. Valider datoer
+        if (startDato > slutDato)
+            throw new ArgumentException("Startdato må ikke være efter slutdato");
+
+        // 4. Valider doser (negativt giver ingen mening)
+        if (antalMorgen < 0 || antalMiddag < 0 || antalAften < 0 || antalNat < 0)
+            throw new ArgumentException("Doser må ikke være negative");
+
+        // 5. Opret ordination
         var ord = new DagligFast(startDato, slutDato, laegemiddel,
-                                 antalMorgen, antalMiddag, antalAften, antalNat);
+            antalMorgen, antalMiddag, antalAften, antalNat);
 
-        // 4. Tilføj til database og til patient
+        // 6. Gem
         db.Ordinationer.Add(ord);
         patient.ordinationer.Add(ord);
-
-        // 5. Gem i databasen
         db.SaveChanges();
 
-        // 6. Returnér den nye ordination
         return ord;
     }
 
@@ -198,6 +198,9 @@ public class DataService
             throw new ArgumentException("Lægemiddel ikke fundet");
 
         var ting = new DagligSkæv(startDato, slutDato, laegemiddel);
+
+        if (startDato > slutDato)
+            throw new ArgumentException("Startdato må ikke være efter slutdato");
 
         // 4. Tilføj doser
         ting.doser = doser.ToList();

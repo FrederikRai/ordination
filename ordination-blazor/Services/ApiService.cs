@@ -45,38 +45,87 @@ public class ApiService
         return await http.GetFromJsonAsync<Laegemiddel[]>(url);
     }
 
-    public async Task<PN> OpretPN(int patientId, int laegemiddelId, double antal, DateTime startDato, DateTime slutDato)
+    public async Task<string> OpretPN(int patientId, int laegemiddelId, double antal,
+     DateTime startDato, DateTime slutDato)
     {
-        string url = $"{baseAPI}ordinationer/pn/";
-        PN_DTO opret = new(patientId, laegemiddelId, antal, startDato, slutDato);
-        HttpResponseMessage res = await http.PostAsJsonAsync<PN_DTO>(url, opret);
-        string json = res.Content.ReadAsStringAsync().Result;
-        PN newPN = JsonSerializer.Deserialize<PN>(json)!;
-        return newPN;
+        try
+        {
+            string url = $"{baseAPI}ordinationer/pn/";
+            PN_DTO dto = new(patientId, laegemiddelId, antal, startDato, slutDato);
+
+            HttpResponseMessage res = await http.PostAsJsonAsync(url, dto);
+
+            string text = await res.Content.ReadAsStringAsync();
+
+            if (!res.IsSuccessStatusCode)
+            {
+                return text;   // 🔥 dette er fejlbeskeden fra API
+            }
+
+            return "OK"; // succes
+        }
+        catch (Exception ex)
+        {
+            return "Fejl: " + ex.Message;
+        }
     }
 
-    public async Task<DagligFast> OpretDagligFast(int patientId, int laegemiddelId, 
-        double antalMorgen, double antalMiddag, double antalAften, double antalNat, 
-        DateTime startDato, DateTime slutDato) {
 
-        string url = $"{baseAPI}ordinationer/dagligfast/";
-        DagligFastDTO opret = new(patientId, laegemiddelId, antalMorgen, antalMiddag, antalAften, antalNat, startDato, slutDato);
-        HttpResponseMessage res = await http.PostAsJsonAsync<DagligFastDTO>(url, opret);
-        string json = res.Content.ReadAsStringAsync().Result;
-        DagligFast newDagligFast = JsonSerializer.Deserialize<DagligFast>(json)!;
-        return newDagligFast;
+
+
+
+    public async Task<string> OpretDagligFast(int patientId, int laegemiddelId,
+        double antalMorgen, double antalMiddag, double antalAften, double antalNat,
+        DateTime startDato, DateTime slutDato)
+    {
+        try
+        {
+            string url = $"{baseAPI}ordinationer/dagligfast/";
+            DagligFastDTO dto = new(patientId, laegemiddelId, antalMorgen, antalMiddag,
+                                    antalAften, antalNat, startDato, slutDato);
+
+            HttpResponseMessage res = await http.PostAsJsonAsync(url, dto);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                return await res.Content.ReadAsStringAsync(); // fejl fra API/DataService
+            }
+
+            return "DagligFast oprettet";
+        }
+        catch (Exception ex)
+        {
+            return "Fejl: " + ex.Message;
+        }
     }
 
-    public async Task<DagligSkæv> OpretDagligSkaev(int patientId, int laegemiddelId,
-        Dosis[] doser, DateTime startDato, DateTime slutDato) {
 
-        string url = $"{baseAPI}ordinationer/dagligskaev/";
-        DagligSkaevDTO opret = new(patientId, laegemiddelId, doser, startDato, slutDato);
-        HttpResponseMessage res = await http.PostAsJsonAsync<DagligSkaevDTO>(url, opret);
-        string json = res.Content.ReadAsStringAsync().Result;
-        DagligSkæv newDagligSkaev = JsonSerializer.Deserialize<DagligSkæv>(json)!;
-        return newDagligSkaev;
+
+
+
+    public async Task<string> OpretDagligSkaev(int patientId, int laegemiddelId,
+        Dosis[] doser, DateTime startDato, DateTime slutDato)
+    {
+        try
+        {
+            string url = $"{baseAPI}ordinationer/dagligskaev/";
+            DagligSkaevDTO dto = new(patientId, laegemiddelId, doser, startDato, slutDato);
+
+            HttpResponseMessage res = await http.PostAsJsonAsync(url, dto);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                return await res.Content.ReadAsStringAsync();
+            }
+
+            return "DagligSkæv oprettet";
+        }
+        catch (Exception ex)
+        {
+            return "Fejl: " + ex.Message;
+        }
     }
+
 
     public async Task<string> GivDosisPN(PN pn, DateTime date)
     {
