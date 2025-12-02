@@ -1,4 +1,6 @@
 namespace shared.Model;
+
+using System.Diagnostics.CodeAnalysis;
 using static shared.Util;
 
 public class DagligFast : Ordination {
@@ -23,12 +25,15 @@ public class DagligFast : Ordination {
 		return base.antalDage() * doegnDosis();
 	}
 
-	public override double doegnDosis() {
-		// TODO: Implement!
-        return -1;
-	}
-	
-	public Dosis[] getDoser() {
+    public override double doegnDosis()
+    {
+        return MorgenDosis.antal
+             + MiddagDosis.antal
+             + AftenDosis.antal
+             + NatDosis.antal;
+    }
+
+    public Dosis[] getDoser() {
 		Dosis[] doser = {MorgenDosis, MiddagDosis, AftenDosis, NatDosis};
 		return doser;
 	}

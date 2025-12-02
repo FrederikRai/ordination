@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 using System.Text.Json;
-
+using Data;
+using Microsoft.EntityFrameworkCore;
 using shared.Model;
 using static shared.Util;
-using Data;
 
 namespace Service;
 
@@ -131,26 +131,115 @@ public class DataService
     }
 
     public PN OpretPN(int patientId, int laegemiddelId, double antal, DateTime startDato, DateTime slutDato) {
-        // TODO: Implement!
-        return null!;
+        // 1. Find patient
+        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId);
+        if (patient == null)
+            throw new ArgumentException("Patient ikke fundet");
+
+        // 2. Find lægemiddel
+        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId);
+        if (laegemiddel == null)
+            throw new ArgumentException("Lægemiddel ikke fundet");
+
+        // 3. Opret selve ordinationen
+        var ord = new PN(startDato, slutDato, antal, laegemiddel);
+
+        // 4. Tilføj til database og til patient
+        db.Ordinationer.Add(ord);
+        patient.ordinationer.Add(ord);
+
+        // 5. Gem i databasen
+        db.SaveChanges();
+
+        // 6. Returnér den nye ordination
+        return ord;
+    }
+    
+
+    public DagligFast OpretDagligFast(int patientId, int laegemiddelId,
+     double antalMorgen, double antalMiddag, double antalAften, double antalNat,
+     DateTime startDato, DateTime slutDato)
+    {
+        // 1. Find patient
+        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId);
+        if (patient == null)
+            throw new ArgumentException("Patient ikke fundet");
+
+        // 2. Find lægemiddel
+        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId);
+        if (laegemiddel == null)
+            throw new ArgumentException("Lægemiddel ikke fundet");
+
+        // 3. Opret selve ordinationen
+        var ord = new DagligFast(startDato, slutDato, laegemiddel,
+                                 antalMorgen, antalMiddag, antalAften, antalNat);
+
+        // 4. Tilføj til database og til patient
+        db.Ordinationer.Add(ord);
+        patient.ordinationer.Add(ord);
+
+        // 5. Gem i databasen
+        db.SaveChanges();
+
+        // 6. Returnér den nye ordination
+        return ord;
     }
 
-    public DagligFast OpretDagligFast(int patientId, int laegemiddelId, 
-        double antalMorgen, double antalMiddag, double antalAften, double antalNat, 
-        DateTime startDato, DateTime slutDato) {
-
-        // TODO: Implement!
-        return null!;
-    }
 
     public DagligSkæv OpretDagligSkaev(int patientId, int laegemiddelId, Dosis[] doser, DateTime startDato, DateTime slutDato) {
-        // TODO: Implement!
-        return null!;
+        // 1. Find patient
+        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId);
+        if (patient == null)
+            throw new ArgumentException("Patient ikke fundet");
+
+        // 2. Find lægemiddel
+        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId);
+        if (laegemiddel == null)
+            throw new ArgumentException("Lægemiddel ikke fundet");
+
+        var ting = new DagligSkæv(startDato, slutDato, laegemiddel);
+
+        // 4. Tilføj doser
+        ting.doser = doser.ToList();
+
+        // 5. Gem i database + tilføj til patient
+        db.Ordinationer.Add(ting);
+        patient.ordinationer.Add(ting);
+
+        db.SaveChanges();
+
+        return ting;
     }
 
-    public string AnvendOrdination(int id, Dato dato) {
-        // TODO: Implement!
-        return null!;
+
+    public string AnvendOrdination(int id, Dato dato)
+    {
+        // 1. Find ordination i databasen
+        var ord = db.Ordinationer
+                    .Include(o => (o is PN) ? ((PN)o).dates : null)
+                    .FirstOrDefault(o => o.OrdinationId == id);
+
+        if (ord == null)
+            return "Ordination ikke fundet";
+
+        // 2. Hvis det er PN → prøv at give dosis
+        if (ord is PN pn)
+        {
+            bool ok = pn.givDosis(dato);
+
+            if (ok)
+            {
+                db.SaveChanges();
+                return "Dosis givet";
+            }
+            else
+            {
+                return "Dato uden for gyldighedsperiode";
+            }
+        }
+
+        // 3. Andre typer må ikke gives manuelt
+        return "Kun PN-ordinationer kan anvendes manuelt";
     }
 
     /// <summary>
@@ -160,9 +249,32 @@ public class DataService
     /// <param name="patient"></param>
     /// <param name="laegemiddel"></param>
     /// <returns></returns>
-	public double GetAnbefaletDosisPerDøgn(int patientId, int laegemiddelId) {
-        // TODO: Implement!
-        return -1;
-	}
-    
+	public double GetAnbefaletDosisPerDøgn(int patientId, int laegemiddelId)
+    {
+        // 1. Find patient
+        var patient = db.Patienter.FirstOrDefault(p => p.PatientId == patientId);
+        if (patient == null)
+            throw new ArgumentException("Patient ikke fundet");
+
+        // 2. Find lægemiddel
+        var laegemiddel = db.Laegemiddler.FirstOrDefault(l => l.LaegemiddelId == laegemiddelId);
+        if (laegemiddel == null)
+            throw new ArgumentException("Lægemiddel ikke fundet");
+
+        double vægt = patient.vaegt;
+        double faktor;
+
+        // 3. Vælg den rigtige faktor ud fra vægten
+        if (vægt < 25)
+            faktor = laegemiddel.enhedPrKgPrDoegnLet;
+        else if (vægt > 120)
+            faktor = laegemiddel.enhedPrKgPrDoegnTung;
+        else
+            faktor = laegemiddel.enhedPrKgPrDoegnNormal;
+
+        // 4. Beregn anbefalet dosis
+        return vægt * faktor;
+    }
+
+
 }
