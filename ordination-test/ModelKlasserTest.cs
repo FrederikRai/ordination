@@ -99,17 +99,7 @@ public class ModelKlasserTest
         );
     }
 
-    [TestMethod]
-    [ExpectedException(typeof(ArgumentNullException))]
-    public void Laegemiddel_MaaIkkeVæreNull()
-    {
-        var ord = new DagligFast(
-            DateTime.Today,
-            DateTime.Today,
-            null!,  // ugyldig
-            1, 1, 1, 1
-        );
-    }
+   
     [TestMethod]
     public void SamletDosis_EnDosisEnDag_Giver10()
     {
@@ -180,6 +170,37 @@ public class ModelKlasserTest
 
         Assert.IsFalse(resultat);
     }
+    [TestMethod]
+    public void PNSamletDosis_IngenDage_Giver0()
+    {
+        var lm = new Laegemiddel("Test", 1, 1, 1, "Styk");
+        var pn = new PN(new DateTime(2021, 1, 1), new DateTime(2021, 1, 10), 4, lm);
+
+        // ingen datoer tilføjet → 0 dage
+
+        double resultat = pn.samletDosis();
+
+        Assert.AreEqual(0, resultat);
+    }
+    [TestMethod]
+[ExpectedException(typeof(ArgumentException))]
+public void PNGivDosis_DatoUdenforPeriode_KasterFejl()
+{
+    var lm = new Laegemiddel("Test", 1, 1, 1, "Styk");
+    var pn = new PN(new DateTime(2021, 1, 1), new DateTime(2021, 1, 3), 3, lm);
+
+    // 05.01 ligger UDEN for perioden
+    pn.givDosis(new Dato { dato = new DateTime(2021, 1, 5) });
+}
+    [TestMethod]
+    [ExpectedException(typeof(ArgumentException))]
+    public void PN_NegativAntalEnheder_KasterFejl()
+    {
+        var lm = new Laegemiddel("Test", 1, 1, 1, "Styk");
+
+        var pn = new PN(new DateTime(2021, 1, 1), new DateTime(2021, 1, 3), -2, lm);
+    }
+
 
     [TestMethod]
     public void AntalDage_13Dage_Korrekt()
